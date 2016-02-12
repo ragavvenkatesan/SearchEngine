@@ -141,7 +141,7 @@ if __name__ == "__main__":
 	create_lexicon_flag = True  	# if true will rebuild lexicon from scratch, if false will load a pre-created one as supplied in sys_arg[1]
 	normalize = False 				# will use document norms and normalized tf-idf, false will not.
 	n_retrieves = 10   				# number of documents to retreive
-	tf_idf_flag = False 				# True retrieves based on Tf/idf, False retrieves based on only Tf. 
+	tf_idf_flag = True 				# True retrieves based on Tf/idf, False retrieves based on only Tf. 
 	directory = '../index'
 
 	print "... loading please wait"
