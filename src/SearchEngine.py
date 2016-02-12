@@ -71,24 +71,24 @@ class search(object):
 		""" 
 		self.normalize = normalize
 		if self.normalize is True:
-			picke_up(filename = sys.argv[1] +'_norms')
+			self.norm = pickle_up(filename = sys.argv[1] +'_norms.pkl.gz')
 		self.tf_idf_flag = tf_idf_flag
 		self.n_retrieves = n_retrieves
 		directory = SimpleFSDirectory(File('../index'))	
 		self.reader = IndexReader.open(directory)
 		if self.normalize is False:
-			self.normalizer = None
+			self.norm = None
 		if create_lexicon_flag is True:
-			if normalize is True:
+			if normalize is True and False:
 				print "... extracting all the norms of docs"
-				self.normalizer, self.norms = calculateNormalizer(reader = reader, verbose = verbose)
-				pickle_down(filename = sys.argv[1] + '_normalizer', obj = normalizer)
-				pickle_down(filename = sys.argv[1] + '_norms', obj = norms)
-				json_down(filename = sys.argv[1] + '_normalizer', obj = normalizer)
-				json_down(filename = sys.argv[1] + '_norms', obj = norms)					
+				start_time = time.clock()
+				self.norm = calculateNormalizer(reader = self.reader, verbose = verbose)
+				end_time = time.clock()
+				print "... time taken for calculating norms is : " + str(end_time - start_time) + " seconds"
+				pickle_down(filename = sys.argv[1] + '_norms', obj = self.norm)					
 				# Need to write a loader function for normalize in case it is already run and pickled.... 
 			self.lexicon = createLexicon(	   reader = self.reader,
-										       normalizer = normalizer if normalize else None,
+										       norm = self.norm if self.normalize else None,
 										       verbose = verbose)
 		else:
 			self.lexicon = pickle_up(sys.argv[1] + '_lexicon.pkl.gz')	
@@ -139,7 +139,7 @@ if __name__ == "__main__":
 	""" setting up flags in this section """
 	verbose = False					# if true prints a lot of stuff.. if false goes a little quiter
 	create_lexicon_flag = True  	# if true will rebuild lexicon from scratch, if false will load a pre-created one as supplied in sys_arg[1]
-	normalize = False 				# will use document norms and normalized tf-idf, false will not.
+	normalize = True 				# will use document norms and normalized tf-idf, false will not.
 	n_retrieves = 10   				# number of documents to retreive
 	tf_idf_flag = False 				# True retrieves based on Tf/idf, False retrieves based on only Tf. 
 	directory = '../index'
