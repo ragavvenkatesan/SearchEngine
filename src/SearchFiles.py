@@ -42,6 +42,3 @@ if __name__ == "__main__":
 				d_url = r.document(tdocs.doc()).getFieldable("path").stringValue().replace("%%", "/")
 				print "["+ str(tdocs.doc()) +"] " + d_url 
 		sc = raw_input("... query> ")
-
-
-	

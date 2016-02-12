@@ -27,7 +27,7 @@ sys.setdefaultencoding('utf-8') # this helps with characters that give frustrati
 from java.io import File
 from java.util import Scanner
 
-#import json
+import pdb
 
 from org.apache.lucene.index import IndexReader, Term 
 from org.apache.lucene.store import SimpleFSDirectory 
@@ -163,6 +163,22 @@ def createLexicon (reader, normalizer = None, tf_idf_flag = False, verbose = Tru
 
 	return term_frequency
 
+def sort_by_idf(reader, n):
+    terms = reader.terms()
+    idf_list = []
+    while terms.next():
+        idf_list.append(idf(reader,terms))
+    idx = sorted(range(len(idf_list)), key=lambda k: idf_list[k])
+
+    for i in xrange(n):
+        count = 0
+        terms = reader.terms()        
+        while terms.next():
+            if count == idx[i]:
+                print str(terms.term().text()) + " " + str(idf_list[idx[i]])
+            count = count + 1
+    pdb.set_trace()
+    	    
 if __name__ == "__main__":
 
 	verbose = False 
@@ -172,6 +188,7 @@ if __name__ == "__main__":
 
 	directory = SimpleFSDirectory(File('../index'))	
 	reader = IndexReader.open(directory)
+    # sort_by_idf(reader,100)
 	if normalize is True:
 		print "... extracting all the norms of docs"
 		normalizer, norms = calculateNormalizer(reader = reader, verbose = verbose)
