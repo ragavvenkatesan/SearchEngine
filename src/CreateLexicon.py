@@ -147,7 +147,7 @@ def tf_idf (reader, term, norm, verbose = False):
 	term_idf = idf(reader, term, verbose = verbose)
 	while docs.next():
 		norm_now = norm[docs.doc()] if norm is not None else 1
-		out.append ( (str(docs.doc()), docs.freq() / (norm_now * term_idf) ) )
+		out.append ( (str(docs.doc()), docs.freq() * term_idf / (norm_now) ) )
 	return out	
 
 def createLexicon (reader, norm = None, tf_idf_flag = False, verbose = True):
