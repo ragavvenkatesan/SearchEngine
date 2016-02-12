@@ -15,7 +15,7 @@ from org.apache.lucene import document
 import cPickle, gzip, csv 
 import math
 
-from CreateLexicon import pickle_up, calculateNormalizer, createLexicon, tf
+from CreateLexicon import pickle_up, pickle_down, calculateNormalizer, createLexicon, tf
 
 class parse_query(object):
 	""" This class defines the query parser. """
@@ -79,7 +79,8 @@ class search(object):
 		if self.normalize is False:
 			self.norm = None
 		if create_lexicon_flag is True:
-			if normalize is True and False:
+			if normalize is True and True:    # make second flag True if you want to create a normalizer also. 
+											   # but assumed created from Create Lexicon file
 				print "... extracting all the norms of docs"
 				start_time = time.clock()
 				self.norm = calculateNormalizer(reader = self.reader, verbose = verbose)
@@ -141,7 +142,7 @@ if __name__ == "__main__":
 	create_lexicon_flag = True  	# if true will rebuild lexicon from scratch, if false will load a pre-created one as supplied in sys_arg[1]
 	normalize = True 				# will use document norms and normalized tf-idf, false will not.
 	n_retrieves = 10   				# number of documents to retreive
-	tf_idf_flag = False 				# True retrieves based on Tf/idf, False retrieves based on only Tf. 
+	tf_idf_flag = True 				# True retrieves based on Tf/idf, False retrieves based on only Tf. 
 	directory = '../index'
 
 	print "... loading please wait"
