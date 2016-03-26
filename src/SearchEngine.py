@@ -16,7 +16,7 @@
 
 import os 
 import sys
-import pdb
+
 
 import time
 import cPickle
@@ -43,6 +43,14 @@ from CreateLexicon import tf, json_up, json_down
 
 from LinkAnalysis import LinkAnalysis
 
+
+def max_page_ranks (loader):
+	ranks = loader('rank')
+	idx = sorted(range(len(ranks)), key=lambda k: ranks[k], reverse = True)
+	for i in xrange(len(idx)):
+		print str(idx[i]) + "\t"  + str(ranks[idx[i]])
+
+
 def normalizer ( l ):
 	minList = min(l)
 	maxList = max(l)
@@ -68,6 +76,7 @@ def page_rank  (   	alpha,
 	k2 = (1-alpha)*(1./numDocs)
 	k1 = 1./numDocs 
 
+	# setup M 
 	keys = {}
 	for doc in xrange(numDocs):
 		links = graph.getLinks(doc)
@@ -82,11 +91,13 @@ def page_rank  (   	alpha,
 				M[str(link)+","+str(doc)] = alpha * prob + k2
 				keys[doc].append(link)
 
+	# create an initial rank
 	rank = list([k1] * numDocs)
 	iteration = 0
 	old_rank = list(rank)
 	key_exist = M.keys()
-	print "total non-zero entries in M " + str(len(key_exist))
+	if verbose is True:
+		print "total non-zero entries in M " + str(len(key_exist))
 
 	if verbose is True:
 		print "power iterating"
@@ -99,14 +110,16 @@ def page_rank  (   	alpha,
 		if verbose is True:
 				print "iteration " + str(iteration)
 
+		# iterate
 		for doc in xrange(numDocs):
 			rank[doc] = 0.
 			for link in keys[doc]:
 				rank[doc] = rank[doc] + rank[link] * M[str(link)+","+str(doc)]
 
 		rank = normalizer(rank)
-		
+		# normalize 
 
+		# check termination
 		for node in xrange(numDocs):
 			if terminate is True:
 				if abs(rank[node] - old_rank[node]) > epsilon:
@@ -138,6 +151,7 @@ def page_rank_score (
 	"""compute page rank weighted score"""
 	similarities = list(normalizer(similarities))
 
+	# normalize similarities before.. 
 	for i in xrange(len(pr_val)):
 		similarities[i]  = weight  * pr_val[i] + (1-weight) * similarities[i]
 
@@ -178,18 +192,21 @@ def authorities_hubs	(
 		if verbose is True:
 			print "iteration " + str(iteration)
 
+		# iterate over authorities
 		for node in nodes:
 			authority[node] = 0.
 			for linkNode in citation_adj[node]:
 				authority[node] = authority[node] + hub[linkNode]					
 				auth_norm = auth_norm + (authority[node] ** 2)
 
+		# iterate over hubs
 		for node in nodes:
 			hub[node] = 0.
 			for linkNode in link_adj[node]:		
 				hub[node] = hub[node] + authority[linkNode]				
 				hub_norm = hub_norm + (hub[node] ** 2)
 
+		#normalize using squared norm instead of 0-1 because slides says so.. 
 		auth_norm = math.sqrt(auth_norm)
 		hub_norm  = math.sqrt(hub_norm)
 
@@ -211,9 +228,6 @@ def authorities_hubs	(
 		old_authority = list(authority)
 		old_hub  = list(hub) 				
 		iteration = iteration + 1
-
-	saver('authorities',authority)
-	saver('hubs',hub)
 
 	return authority, hub
 
@@ -345,6 +359,7 @@ class search(object):
 				                    verbose         = verbose
                 				)
 			if pr_flag is True:
+				# pre-calculate page rank
 				if create_page_rank_flag is True:    # make this a create_page_rank_flag 
 					self.pr_values = page_rank (
 									alpha   = 0.1,
@@ -355,8 +370,8 @@ class search(object):
 									verbose = True
 								  )	
 				else:
+					# if already calculated simply load
 					self.pr_values = loader('rank')
-
 
 	def retrieve(self, pr_weight =0.4, verbose = True):
 		""" This function retrieves
@@ -441,7 +456,7 @@ class search(object):
 
 					if not fwd_link in base_set:
 						base_set.append(fwd_link)	
-
+						# grow base set and mark in adjacency matrix
 					if not fwd_link in citation_adj.keys():					
 						citation_adj[fwd_link] = list([])						
 					if not fwd_link in link_adj.keys():
@@ -475,7 +490,7 @@ class search(object):
 				print "size of base set is " 			+ str(len(base_set))	
 				print "size of citation adjacency is "	+ str(len(citation_adj.keys()))	
 				print "size of link adjacency is "		+ str(len(link_adj.keys()))
-
+			# calcualte hubs and authorities
 			auth_score, hub_score = authorities_hubs (		
 													numDocs = self.numDocs,
 				 									adj = (link_adj, citation_adj),
@@ -488,13 +503,12 @@ class search(object):
 			hub_idx = sorted(range(len(hub_score)), key=lambda k: hub_score[k], reverse = True)		
 
 			end_time = time.clock()
-			print "authorities and hubs time " + str(end_time - start_time) + " seconds"
+			print "authorities and hubs took " + str(end_time - start_time) + " seconds"
 
 		elif self.pr_flag is True:
 			start_time = time.clock()
-			if verbose is True:
-				print "estimating root set"
-			root_set = list(idx[0:self.root_set_size])
+
+			# calcualte page rank score ... 
 			sim_new = page_rank_score (
 											weight = pr_weight,
 											similarities = sim,
@@ -503,7 +517,8 @@ class search(object):
 										)		
 
 			idx_new = sorted(range(len(sim_new)), key=lambda k: sim_new[k], reverse = True)
-
+			end_time = time.clock()
+			print "page rank took " + str(end_time - start_time) + " seconds"
 
 		if self.ah_flag is True:
 			return (idx, sim, auth_idx, auth_score, hub_idx, hub_score)
@@ -528,30 +543,34 @@ class search(object):
 			doc_ids, score = self.retrieve(verbose = verbose)		
 
 		end_time = time.clock()
-		print "took " + str(end_time - start_time) + " seconds to retrieve"
+		print "in total  " + str(end_time - start_time) + " seconds for retrieval"
 		if print_urls is True:
 			print "vector space retreival"
 			for i in xrange(self.n_retrieves):
 				d = self.reader.document(doc_ids[i])			
-				print "doc: [" + str(doc_ids[i]) +"], score: [" + str(score[doc_ids[i]]) +"], url: " + d.getFieldable("path").stringValue().replace("%%", "/")
+				print "doc: [" + str(doc_ids[i]) +"], score: [" + str(score[doc_ids[i]]) +"]"
+				#, url: " + d.getFieldable("path").stringValue().replace("%%", "/")
 
 			if self.ah_flag is True:
 				print "authorities based retreival"
 				for i in xrange(self.n_retrieves):
 					d = self.reader.document(auth_ids[i])			
-					print "doc: [" + str(auth_ids[i]) +"], score: [" + str(auth_score[auth_ids[i]]) +"], url: " + d.getFieldable("path").stringValue().replace("%%", "/")
+					print "doc: [" + str(auth_ids[i]) +"], score: [" + str(auth_score[auth_ids[i]]) +"]"
+					#, url: " + d.getFieldable("path").stringValue().replace("%%", "/")
 
 				print "hubs based retreival"
 				for i in xrange(self.n_retrieves):
 					d = self.reader.document(hub_ids[i])			
-					print "doc: [" + str(hub_ids[i]) +"], score: [" + str(hub_score[hub_ids[i]]) +"], url: " + d.getFieldable("path").stringValue().replace("%%", "/")
+					print "doc: [" + str(hub_ids[i]) +"], score: [" + str(hub_score[hub_ids[i]]) +"]"
+					#, url: " + d.getFieldable("path").stringValue().replace("%%", "/")
 
 
 			elif self.pr_flag is True:
 				print "page rank based retreival"
 				for i in xrange(self.n_retrieves):
 					d = self.reader.document(pr_ids[i])			
-					print "doc: [" + str(pr_ids[i]) +"], score: [" + str(pr[pr_ids[i]]) +"], url: " + d.getFieldable("path").stringValue().replace("%%", "/")
+					print "doc: [" + str(pr_ids[i]) +"], score: [" + str(pr[pr_ids[i]]) +"]"
+					#, url: " + d.getFieldable("path").stringValue().replace("%%", "/")
 
 
 
@@ -562,14 +581,15 @@ class search(object):
 
 if __name__ == "__main__":
 
+
 	""" setting up flags in this section """
 	verbose = False					# if true prints a lot of stuff.. if false goes a little quiter
 	create_lexicon_flag = True  	# if true will rebuild lexicon from scratch, if false will load a pre-created one as supplied in sys_arg[1]
-	create_page_rank_flag = True    # same as for create page rank... default load file is 'page_rank' with loader extension
-	normalize = True 				# will use document norms and normalized tf-idf, false will not.
+	create_page_rank_flag = False    # same as for create page rank... default load file is 'page_rank' with loader extension
+	normalize = False 				# will use document norms and normalized tf-idf, false will not.
 	n_retrieves = 10   				# number of documents to retreive
 	root_set_size = 10
-	tf_idf_flag = True 		    # True retrieves based on Tf/idf, False retrieves based on only Tf. 
+	tf_idf_flag = False 		    # True retrieves based on Tf/idf, False retrieves based on only Tf. 
 	directory = '../index'			# directory of index
 	linksFile = "../index/IntLinks.txt"
 	citationsFile = "../index/IntCitations.txt"    
