@@ -3,7 +3,9 @@ This is the repository for my Information Retrieval course project from ASU Spri
 It was implemented progressively. 
 
 update 0: TF-IDF based retrieval
+
 update 1: added options for Authorites and Hubs
+
 update 2: added options for page rank   
 
 To run the code. First you need to setup jython and install pylucene.
