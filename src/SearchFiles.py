@@ -1,5 +1,8 @@
 #!/usr/bin/python
 import sys, os 
+sys.path.append("../lib/lucene-core-3.6.2.jar")
+sys.path.append("../lib/lucene-core-3.6.2-javadoc.jar")
+
 from java.io import File
 from java.util import Scanner
 from org.apache.lucene.index import IndexReader, Term

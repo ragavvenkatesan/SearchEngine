@@ -1,15 +1,8 @@
 #!/usr/bin/python
 # Code written by Ragav Venkatesan 
 # Code extracts TF-IDF from a lucene index and saves it in a csv file.
-# 
-# to run the code first set up the lucene path 
 #
-#
-# 			export CLASSPATH=/Users/ragav/Desktop/IR/Project/lib/lucene-core-3.6.2.jar
-#
-#
-# then run as 
-#
+# run as 
 #
 # 			jython <filename.py> 
 #
@@ -22,60 +15,44 @@
 import os 
 import sys
 reload(sys)
+sys.path.append("../lib/lucene-core-3.6.2.jar")
+sys.path.append("../lib/lucene-core-3.6.2-javadoc.jar")
 sys.setdefaultencoding('utf-8') # this helps with characters that give frustrating errors.
 
 from java.io import File
 from java.util import Scanner
 
-import pdb
+import json
 
 from org.apache.lucene.index import IndexReader, Term 
 from org.apache.lucene.store import SimpleFSDirectory 
 
-import cPickle, gzip, csv 
+import cPickle, csv 
 import math
 import time
 
 def idf(reader, term, verbose = False):
 	""" for every Term in the format of lucene term, this returns its idf. It returns 1 if there is no idf """
 	if verbose is True:
-		print "... extracting the inverse document frequency of term: " + term.term().text()
+		print "extracting the inverse document frequency of term: " + term.term().text()
 	return math.log(float(reader.maxDoc()) / (0.0000001 + reader.docFreq(Term("contents",term.term().text()))))
 
-def pickle_down(filename, obj):
-	""" Write down a dictionary as a pkl """ 
-	
-	f = gzip.open(filename + '.pkl.gz', 'wb')	
+def pickle_down(filename, obj):	
+	f = open(filename +".pkl", 'wb')	
 	cPickle.dump(obj, f)
-	f.close()
-	"""
-	writer = csv.writer(open(filename + '.csv', 'wb'))
-	for key, value in obj.items():
-		writer.writerow([key, value])
-	"""
-"""
-def json_down(filename, obj):
+	f.close()	
 	
+def json_down(filename, obj):	
 	f = open(filename + '.json', 'w')	
 	json.dump(obj, f)
 	f.close()
-"""
+
 def pickle_up(filename):
-	f = gzip.open(filename, 'rb')
-	"""
-	reader = csv.reader(open(filename, 'rb'))
-	mydict = dict(reader)	
-	return mydict
-	"""    
+	f = open(filename +".pkl", 'rb')  
 	return cPickle.load(f)
 
 def json_up(filename):
-	f = open(filename, 'r')
-	"""
-	reader = csv.reader(open(filename, 'rb'))
-	mydict = dict(reader)	
-	return mydict
-	"""    
+	f = open(filename+".json", 'r')   
 	return json.load(f)	
 
 def calculateNormalizer(reader, verbose = True):
@@ -93,25 +70,6 @@ def calculateNormalizer(reader, verbose = True):
 	for i in xrange(nDocs):
 		norm[i] = math.sqrt(norm[i])
 
-	"""    
-	for i in xrange(nDocs): # For every doc,
-		max_freq = 0 	
-		term = reader.terms()
-		norm_temp = 0		
-		print "... calculating NF for doc " + str(i)	
-		while term.next():  # For every term, 
-			td = reader.termDocs(term.term())   # collect all the document in which the term is present.
-			while td.next():
-				if td.doc() == i:				# if the term is present in the current document
-					norm_temp = norm_temp + td.freq() ** 2
-					if td.freq() > max_freq:    # if the term has a higher frequency than the current maxFreq
-						max_freq = td.freq()    # this is the term with the highest freqency in the doc						
-		if verbose is True:
-			if max_freq > 0: # Dummy check. 
-				print "... NF of doc " + str(i) + " is " + str(max_freq)
-		nf.append(max_freq)
-		norm.append(math.sqrt(norm_temp))
-	"""	
 	return norm
 	
 def tf(reader, term, norm, verbose = True):
@@ -119,7 +77,7 @@ def tf(reader, term, norm, verbose = True):
 		out["doc_id"] = frequncy of the terms in the doc_id in the reader object
 	"""
 	if verbose is True:
-		print "... extracting term-frequency of term : " + term.term().text() 
+		print "extracting term-frequency of term : " + term.term().text() 
 
 	te = Term("contents",term.term().text())	
 	totalDocs = reader.maxDoc()
@@ -140,7 +98,7 @@ def tf_idf (reader, term, norm, verbose = False):
 		out["doc_id"] = frequncy of the terms in the doc_id in the reader object / its idf
 	"""		
 	if verbose is True:
-		print "... extracting term-frequency / inverse-document frequency of term : " + term.term().text() 
+		print "extracting term-frequency / inverse-document frequency of term : " + term.term().text() 
 	te = Term("contents",term.term().text())	
 	out = []
 	docs = reader.termDocs(te)
@@ -150,13 +108,14 @@ def tf_idf (reader, term, norm, verbose = False):
 		out.append ( (str(docs.doc()), docs.freq() * term_idf / (norm_now) ) )
 	return out	
 
-def createLexicon (reader, norm = None, tf_idf_flag = False, verbose = True):
+def createLexicon (reader, filename, norm = None, tf_idf_flag = False, verbose = True):
 	""" Returns nothing, but saves down a pickle file of lexicon
 		Saved Down Lexicon Contains the TF only. Not IDF. 
 	"""
 
 	term_frequency = {}
-	print "... creating the lexicon from the index files "	
+	if verbose is True:
+		print "creating the lexicon from the index files "	
 	term = reader.terms()	
 	count = 0 
 	while term.next():
@@ -166,11 +125,8 @@ def createLexicon (reader, norm = None, tf_idf_flag = False, verbose = True):
 			raw_frequency = tf_idf (reader = reader, term = term, norm = norm, verbose = verbose )
 		term_frequency[str(term.term().text())] = raw_frequency 
 		if verbose is True:
-			print "... extracting lexicon for term " + str(count)
+			print "extracting lexicon for term " + str(count)
 		count = count + 1 
-	pickle_down(filename = sys.argv[1] +'_lexicon', obj = term_frequency)
-	# json_down(filename = sys.argv[1] +'_lexicon', obj = term_frequency)
-
 	return term_frequency
 
 def sort_by_idf(reader, n):
@@ -187,8 +143,7 @@ def sort_by_idf(reader, n):
             if count == idx[i]:
                 print str(terms.term().text()) + " " + str(idf_list[idx[i]])
             count = count + 1
-    pdb.set_trace()
-    	    
+
 if __name__ == "__main__":
 
 	verbose = False 
@@ -199,15 +154,23 @@ if __name__ == "__main__":
 	directory = SimpleFSDirectory(File('../index'))	
 	reader = IndexReader.open(directory)
     # sort_by_idf(reader,100)
+
+	if len(sys.argv) < 2:
+		filename = 'temp'
+	else:
+		filename = sys.argv[1]
+
 	if normalize is True:
-		print "... extracting all the norms of docs"
+		print "extracting all the norms of docs"
 		start_time = time.clock()
 		norms = calculateNormalizer(reader = reader, verbose = verbose)
 		end_time = time.clock()		
-		print "... time taken for calculating norms is : " + str(end_time - start_time) + " seconds"
-		pickle_down(filename = sys.argv[1] + '_norms', obj = norms)
+		print "time taken for calculating norms is : " + str(end_time - start_time) + " seconds"
+		pickle_down(filename = filename + '_norms', obj = norms)
 
-	lexicon  = createLexicon(	reader = reader,
+	lexicon  = createLexicon(	
+					filename = filename,
+					reader = reader,
 					norm = norms if normalize else None,
 					tf_idf_flag = tf_idf_flag, 
 					verbose = verbose)
