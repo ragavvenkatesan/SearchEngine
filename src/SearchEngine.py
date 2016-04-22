@@ -43,7 +43,104 @@ from CreateLexicon import tf, json_up, json_down
 
 from LinkAnalysis import LinkAnalysis
 
+from kmeans import kmeans, Point
 
+from collections import OrderedDict
+
+def cluster(     doc_ids,
+				 lexicon,
+				 r,
+				 num_clusters,
+				 verbose = True):
+	words = {}
+	t = r.terms()
+	if verbose is True:
+		print "extracting unique words in the document list"
+		
+	i = 0				
+	while t.next():		
+		if verbose is True:	
+			print "word " + str(i) + " is " + str(t.term().text())			
+		I = lexicon[str(t.term().text())] # extract the lexicon of the term
+		for doc_id, doc_feat in I:    # for every document that carries the term
+			if int(doc_id) in doc_ids:
+				words[i] = str(t.term().text())
+				break			
+		i = i + 1
+		
+	if verbose is True:
+		print "creating doc space"
+				
+	# create a zero featurespace
+	doc_space = OrderedDict()	
+	for doc in doc_ids:		
+		doc_space[doc] = [0] * len(words.keys())
+	
+	# create a featurespace of data in ditionaries.
+	w = 0
+	for key in words.keys():	
+		I = lexicon[words[key]] 
+		for doc_id, doc_feat in I:  
+			if int(doc_id) in doc_ids:						
+				doc_space[int(doc_id)][w] = doc_feat
+		w = w + 1
+
+	num_points = len(doc_ids)
+	dimensions = len(words.keys())
+
+	if verbose is True:
+		print "creating featurespace"
+		  
+	opt_cutoff = 0.005  
+	points = [Point(doc_space[doc], doc)  for doc in doc_ids]
+
+	# Cluster those data!
+	clusters = kmeans(points, num_clusters, opt_cutoff, verbose = verbose)
+		
+	for i,c in enumerate(clusters):
+		for p in c.points:			
+			print " cluster: ", i, "\t document [", p.id, "]"		
+		
+	clus_list = OrderedDict()
+	clus_list[0] = []
+	clus_list[1] = []
+	clus_list[2] = []	
+		
+	clus = 0	
+	# Print our clusters
+	
+	word_hists = OrderedDict()
+	clus = 0
+	for i,c in enumerate(clusters):
+		word_hists[clus] = {}			
+		for p in c.points:
+			clus_list[clus].append(p.id)
+		clus = clus + 1
+		
+	verbose = True	
+	
+
+	for key in words.keys():
+		I = lexicon[words[key]] # extract the lexicon of the term	
+		if verbose is True:
+			print "word is : " + words[key] 				
+		for doc_id, doc_feat in I:    # for every document that carries the term
+			hit = False				
+			if int(doc_id) in doc_space.keys():
+				for clus in clus_list.keys():
+					if (int(doc_id) in clus_list[clus]) and hit is False:
+						if not words[key] in word_hists[clus].keys():
+							word_hists[clus][words[key]] = doc_feat 
+						else:
+							word_hists[clus][words[key]] += doc_feat
+						hit = True							
+	clus_sort = {}
+	for clus in clus_list.keys():
+		clus_sort[clus] = sorted(word_hists[clus], key=word_hists[clus].get)
+		
+		
+	return clusters 
+	
 def max_page_ranks (loader):
 	ranks = loader('rank')
 	idx = sorted(range(len(ranks)), key=lambda k: ranks[k], reverse = True)
@@ -231,9 +328,6 @@ def authorities_hubs	(
 
 	return authority, hub
 
-
-
-
 class parse_query(object):	
 	""" This class defines the query parser. """
 	def __init__(self, query, reader, normalizer = None, verbose = False):
@@ -288,8 +382,10 @@ class search(object):
                     saver,
                     loader,
                     create_lexicon_flag = False, 
+					cluster_results = False,
+					num_clusters = 3,
                     tf_idf_flag = True, 
-                    ah_flag = True,
+                    ah_flag = False,
                     pr_flag = False,
                     normalize = True, 
                     create_page_rank_flag = False,
@@ -311,6 +407,8 @@ class search(object):
 		self.n_retrieves = n_retrieves
 		self.root_set_size = root_set_size
 		self.maxIter = maxIter
+		self.cluster_results = cluster_results
+		self.num_clusters = num_clusters
 		assert self.root_set_size >= self.n_retrieves
 
 		directory = SimpleFSDirectory(File('../index'))	
@@ -384,7 +482,7 @@ class search(object):
 		# initialized all sims to 0
 		if verbose is True:
 			print "estimating query features"
-		q_feat = self.query.tf_idf() if tf_idf_flag is True else self.query.tf()
+		q_feat = self.query.tf_idf() if self.tf_idf_flag is True else self.query.tf()
 		i = 0
 
 		if verbose is True:
@@ -405,7 +503,8 @@ class search(object):
 
 		if self.normalize is True:
 			if verbose is True:
-				print "normalizing "		
+				print "normalizing "
+			I = self.lexicon[str(term.text())] # extract the lexicon of the term						
 			for doc_id, feat in I:
 				sim[int(doc_id)] = sim[int(doc_id)] / self.norm[int(doc_id)]
 		
@@ -437,8 +536,6 @@ class search(object):
 				if verbose is True:
 					count = count + 1
 					print "growing base for node " + str(count) + " - " + str(root_node)	
-
-
 
 				if not root_node in link_adj.keys():
 					link_adj[root_node] = list([])
@@ -520,6 +617,17 @@ class search(object):
 			end_time = time.clock()
 			print "page rank took " + str(end_time - start_time) + " seconds"
 
+
+		if self.cluster_results is True:
+			words = cluster(doc_ids = idx[0:self.n_retrieves],
+										 lexicon = self.lexicon,
+										 r = self.reader,
+										 num_clusters = self.num_clusters,
+										 verbose = verbose)
+			import pdb
+			pdb.set_trace()			
+			
+			
 		if self.ah_flag is True:
 			return (idx, sim, auth_idx, auth_score, hub_idx, hub_score)
 
@@ -527,8 +635,7 @@ class search(object):
 			return (idx, sim, idx_new, sim_new)
 
 		else:
-			return (idx, sim) 
-
+			return (idx, sim) 			
 
 	def run(self, query, print_urls = True, pr_weight =0.4, verbose = False):
 		"""this function basically runs a query""" 
@@ -571,11 +678,11 @@ class search(object):
 					d = self.reader.document(pr_ids[i])			
 					print "doc: [" + str(pr_ids[i]) +"], score: [" + str(pr[pr_ids[i]]) +"]"
 					#, url: " + d.getFieldable("path").stringValue().replace("%%", "/")
-
-
+					
 
 		print  "retrieval complete. "
 		print  "..........................................................................." 
+		return d 
 
  
 
@@ -586,21 +693,25 @@ if __name__ == "__main__":
 	verbose = False					# if true prints a lot of stuff.. if false goes a little quiter
 	create_lexicon_flag = True  	# if true will rebuild lexicon from scratch, if false will load a pre-created one as supplied in sys_arg[1]
 	create_page_rank_flag = False    # same as for create page rank... default load file is 'page_rank' with loader extension
-	normalize = False 				# will use document norms and normalized tf-idf, false will not.
-	n_retrieves = 10   				# number of documents to retreive
-	root_set_size = 10
-	tf_idf_flag = False 		    # True retrieves based on Tf/idf, False retrieves based on only Tf. 
+	normalize = True 				# will use document norms and normalized tf-idf, false will not.
+	n_retrieves = 50   				# number of documents to retreive
+	root_set_size = 50
+	tf_idf_flag = True 		    # True retrieves based on Tf/idf, False retrieves based on only Tf. 
 	directory = '../index'			# directory of index
 	linksFile = "../index/IntLinks.txt"
 	citationsFile = "../index/IntCitations.txt"    
 	maxIter = 100    
 
 	ah_flag = False
-	pr_flag = True
+	pr_flag = False
 
 	saver = json_down
 	loader = json_up
-
+	
+	cluster_results = False
+	num_clusters = 3
+		
+		
 	if len(sys.argv) < 2:
 		filename = 'temp'
 	else:
@@ -614,6 +725,8 @@ if __name__ == "__main__":
 						normalize = normalize,
 						directory = directory,
 						n_retrieves = n_retrieves,
+						cluster_results = cluster_results,
+						num_clusters = num_clusters,
 						maxIter = maxIter,
 						root_set_size = root_set_size,
 						tf_idf_flag = tf_idf_flag,
@@ -634,5 +747,5 @@ if __name__ == "__main__":
 
 	query = raw_input("query> ")
 	while not query == 'quit':
-		engine.run (query = query, print_urls = True, pr_weight = 0.4, verbose = verbose)
+		docs = engine.run (query = query, print_urls = True, pr_weight = 0.4, verbose = verbose)
 		query = raw_input("query> ")

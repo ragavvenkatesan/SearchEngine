@@ -30,7 +30,7 @@ if __name__ == "__main__":
 	while td.next():
 		print "... document number " +str(td.doc()) + " contains the term brute " + str(td.freq()) + " time(s)."
 
-	d = r.document(14191);
+	d = r.document(14191)
 	url = d.getFieldable("path").stringValue()
 	print "url of 14191 : " + url.replace("%%", "/")
 
@@ -40,7 +40,6 @@ if __name__ == "__main__":
 		for word in terms:
 			term = Term("contents",word)
 			tdocs = r.termDocs(term)
-			pdb.set_trace()
 			while tdocs.next():
 				d_url = r.document(tdocs.doc()).getFieldable("path").stringValue().replace("%%", "/")
 				print "["+ str(tdocs.doc()) +"] " + d_url 
