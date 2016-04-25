@@ -17,7 +17,9 @@ class search_gui(search):
         """this function basically runs a query""" 
         self.query = parse_query(query, self.reader)
         start_time = time.clock()
-
+        
+        self.n_show = 10
+        
         if self.ah_flag is True:
             doc_ids, score, auth_ids, auth_score, hub_ids, hub_score = self.retrieve(verbose = verbose)
         elif self.pr_flag is True:
@@ -28,40 +30,42 @@ class search_gui(search):
         end_time = time.clock()
         frame = JFrame('Ragav\'s Search Engine',
                         defaultCloseOperation = JFrame.EXIT_ON_CLOSE,
-                        size = (800, 800)
+                        size = (100, 200)
                         )  
-        panel = JPanel(GridLayout(0,2))
+        panel = JPanel(GridLayout(0,1))
         frame.add(panel)                           
 
         print "in total  " + str(end_time - start_time) + " seconds for retrieval"
         
         if print_urls is True:
-            panel.add ( JLabel("vector space retreival" ) )
-            for i in xrange(self.n_retrieves):
+            # panel.add ( JLabel("vector space retreival" ) )
+            for i in xrange(self.n_show):
                 d = self.reader.document(doc_ids[i])			
                 panel.add ( JLabel (d.getFieldable("path").stringValue().replace("%%", "/") ) )
+                print "doc: [" + str(doc_ids[i]) + "], score: [" + str(score[doc_ids[i]]) +  "], url: " + d.getFieldable("path").stringValue().replace("%%", "/")
 
             if self.ah_flag is True:
-                panel.add ( Jlabel("authorities based retreival" ) )
-                for i in xrange(self.n_retrieves):
+                # panel.add ( Jlabel("authorities based retreival" ) )
+                for i in xrange(self.n_show):
                     d = self.reader.document(auth_ids[i])			
                     panel.add (  JLabel (d.getFieldable("path").stringValue().replace("%%", "/") ) )
 
-                panel.add ( JLabel("hubs based retreival" ) )
-                for i in xrange(self.n_retrieves):
+                # panel.add ( JLabel("hubs based retreival" ) )
+                for i in xrange(self.n_show):
                     d = self.reader.document(hub_ids[i])			
                     panel.add (  JLabel  ( d.getFieldable("path").stringValue().replace("%%", "/") ) )
 
 
             elif self.pr_flag is True:
-                panel.add ( JLabel("page rank based retreival" ) )
-                for i in xrange(self.n_retrieves):
+                # panel.add ( JLabel("page rank based retreival" ) )
+                for i in xrange(self.n_Show):
                     d = self.reader.document(pr_ids[i])			
                     panel.add ( JLabel ( d.getFieldable("path").stringValue().replace("%%", "/") ) )
 
 
         print  "retrieval complete. "
-        print  "..........................................................................." 
+        print  "..........................................................................."
+        frame.pack() 
         frame.visible = True            
         return d 
 
@@ -72,10 +76,10 @@ class gui_run (object):
         verbose = False					# if true prints a lot of stuff.. if false goes a little quiter
         create_lexicon_flag = True  	# if true will rebuild lexicon from scratch, if false will load a pre-created one as supplied in sys_arg[1]
         create_page_rank_flag = False    # same as for create page rank... default load file is 'page_rank' with loader extension
-        normalize = False 				# will use document norms and normalized tf-idf, false will not.
+        normalize = True 				# will use document norms and normalized tf-idf, false will not.
         n_retrieves = 50   				# number of documents to retreive
         root_set_size = 50
-        tf_idf_flag = False 		    # True retrieves based on Tf/idf, False retrieves based on only Tf. 
+        tf_idf_flag = True 		    # True retrieves based on Tf/idf, False retrieves based on only Tf. 
         directory = '../index'			# directory of index
         linksFile = "../index/IntLinks.txt"
         citationsFile = "../index/IntCitations.txt"    

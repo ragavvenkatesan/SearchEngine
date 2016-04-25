@@ -91,12 +91,12 @@ def cluster(     doc_ids,
 	if verbose is True:
 		print "creating featurespace"
 		  
-	opt_cutoff = 0.005  
+	opt_cutoff = 0.5  
 	points = [Point(doc_space[doc], doc)  for doc in doc_ids]
 
 	# Cluster those data!
 	clusters = kmeans(points, num_clusters, opt_cutoff, verbose = verbose)
-		
+
 	for i,c in enumerate(clusters):
 		for p in c.points:			
 			print " cluster: ", i, "\t document [", p.id, "]"		
@@ -115,10 +115,7 @@ def cluster(     doc_ids,
 		word_hists[clus] = {}			
 		for p in c.points:
 			clus_list[clus].append(p.id)
-		clus = clus + 1
-		
-	verbose = True	
-	
+		clus = clus + 1	
 
 	for key in words.keys():
 		I = lexicon[words[key]] # extract the lexicon of the term	
@@ -138,7 +135,8 @@ def cluster(     doc_ids,
 	for clus in clus_list.keys():
 		clus_sort[clus] = sorted(word_hists[clus], key=word_hists[clus].get)
 		
-		
+	import pdb
+	pdb.set_trace()	
 	return clusters 
 	
 def max_page_ranks (loader):
@@ -624,9 +622,6 @@ class search(object):
 										 r = self.reader,
 										 num_clusters = self.num_clusters,
 										 verbose = verbose)
-			import pdb
-			pdb.set_trace()			
-			
 			
 		if self.ah_flag is True:
 			return (idx, sim, auth_idx, auth_score, hub_idx, hub_score)
@@ -708,7 +703,7 @@ if __name__ == "__main__":
 	saver = json_down
 	loader = json_up
 	
-	cluster_results = False
+	cluster_results = True
 	num_clusters = 3
 		
 		
